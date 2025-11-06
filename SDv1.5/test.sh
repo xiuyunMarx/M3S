@@ -2,6 +2,8 @@
 # struct_image_path: style 2
 # CFG: ω_1
 # swap_guidance_scale: ω_2
+# Single style: ω_1 15 ω_2 15;    ω_1 7.5 ω_2 7.5; 
+# Multi styles: ω_1 15 ω_2 15;    ω_1 7.5 ω_2 7.5; 
 # domain_name: prompt (there is no need to add the prefix "a sketch of")
 # alpha: style tendency η
 # interpolation: Linear smoothing λ
