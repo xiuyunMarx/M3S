@@ -9,7 +9,7 @@
 
 <sup>✉</sup>corresponding authors
 
-<a href='https://arxiv.org/'><img src='https://img.shields.io/badge/Arxiv-red'></a>
+<a href='https://arxiv.org/abs/2511.04123'><img src='https://img.shields.io/badge/Arxiv-red'></a>
 <a href='https://openreview.net/pdf?id=C7Ed8V44JY'><img src='https://img.shields.io/badge/OpenReview-green'></a>
 
 </div>
@@ -57,7 +57,6 @@ To generate sketches:
 ```bash
 # You can change the parameters in test.sh for different styles, contents, and style tendencies.
 # The role of each parameter is explained in test.sh.
-# 
 cd SDv1.5 (or SDXL)
 bash test.sh
 ```
