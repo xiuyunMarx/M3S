@@ -3,7 +3,7 @@ from typing import List, Optional, Callable
 import torch
 import torch.nn.functional as F
 from config import RunConfig
-from constants import OUT_INDEX, STRUCT_INDEX, APP_INDEX
+from constants import OUT_INDEX, STRUCT_INDEX, APP_INDEX, STYLE_INDEX
 from models.stable_diffusion import CrossImageAttentionStableDiffusionPipeline
 from utils import attention_utils
 from utils.adain import masked_adain, adain
@@ -59,7 +59,7 @@ class AppearanceTransferModel:
                     if run_config.mix_style is True:
                         alpha = run_config.alpha
                         tankman = run_config.tankman
-                        latents[0] = alpha*adain(latents[0], latents[1]) + (1 - alpha - tankman)*adain(latents[0], latents[2]) + tankman*adain(latents[0], latents[3])
+                        latents[0] = alpha*adain(latents[0], latents[1]) + tankman*adain(latents[0], latents[2]) + (1-alpha-tankman)*adain(latents[0], latents[3])
                     else:
                         latents[0] = adain(latents[0], latents[1])
 
@@ -125,6 +125,7 @@ class AppearanceTransferModel:
 
                 # Potentially apply our cross image attention operation
                 # To do so, we need to be in a self-attention layer in the decoder part of the denoising network
+                #TODO: append another style image
                 attn_control = None
                 if perform_swap and not is_cross and "up" in self.place_in_unet and model_self.enable_edit:
                     if attention_utils.should_mix_keys_and_values(model_self, hidden_states):
@@ -133,8 +134,8 @@ class AppearanceTransferModel:
                             key[OUT_INDEX] = key[APP_INDEX]
                             value[OUT_INDEX] = value[APP_INDEX]
 
-                            key[3] = key[APP_INDEX]
-                            value[3] = value[APP_INDEX]
+                            key[4] = key[APP_INDEX]
+                            value[4] = value[APP_INDEX]
                         
                         else:
                             # sigle style
@@ -143,13 +144,13 @@ class AppearanceTransferModel:
                                                     coef*key[OUT_INDEX]+(1-coef)*key[APP_INDEX]],dim=0)
                                 
                                 tmp_value = torch.cat([value[OUT_INDEX], 
-                                                       coef*value[3]+(1-coef)*value[APP_INDEX]],dim=0)
+                                                       coef*value[4]+(1-coef)*value[APP_INDEX]],dim=0)
 
-                                tmp_key_2 = torch.cat([key[3], 
-                                                       coef*key[3]+(1-coef)*key[APP_INDEX]],dim=0)
+                                tmp_key_2 = torch.cat([key[4], 
+                                                       coef*key[4]+(1-coef)*key[APP_INDEX]],dim=0)
                                 
-                                tmp_value_2 = torch.cat([value[3], 
-                                                         coef*value[3]+(1-coef)*value[APP_INDEX]],dim=0)
+                                tmp_value_2 = torch.cat([value[4], 
+                                                         coef*value[4]+(1-coef)*value[APP_INDEX]],dim=0)
 
                                 key = torch.cat([key,key],dim=1)
                                 value=torch.cat([value,value],dim=1)
@@ -158,30 +159,35 @@ class AppearanceTransferModel:
 
                             # style mixing
                             else:
+                                # breakpoint()
                                 tmp_key = torch.cat([1.0*key[OUT_INDEX],
                                                      coef*key[OUT_INDEX]+(1-coef)*key[APP_INDEX],
-                                                     coef*key[OUT_INDEX]+(1-coef)*key[STRUCT_INDEX] ],dim=0)
+                                                     coef*key[OUT_INDEX]+(1-coef)*key[STRUCT_INDEX],
+                                                     coef*key[OUT_INDEX]+(1-coef)*key[STYLE_INDEX]],dim=0)
                                 
                                 tmp_value = torch.cat([1.0*value[OUT_INDEX], 
                                                        coef*value[OUT_INDEX]+(1-coef)*value[APP_INDEX], 
-                                                       coef*value[OUT_INDEX]+(1-coef)*value[STRUCT_INDEX]],dim=0)
+                                                       coef*value[OUT_INDEX]+(1-coef)*value[STRUCT_INDEX],
+                                                       coef*value[OUT_INDEX]+(1-coef)*value[STYLE_INDEX]],dim=0)
 
-                                tmp_key_2 = torch.cat([key[3], 
-                                                       coef*key[3]+(1-coef)*key[APP_INDEX],
-                                                     coef*key[3]+(1-coef)*key[STRUCT_INDEX]],dim=0)
-                                tmp_value_2 = torch.cat([value[3], 
-                                                        coef*value[3]+(1-coef)*value[APP_INDEX], 
-                                                        coef*value[3]+(1-coef)*value[STRUCT_INDEX]],dim=0)
+                                tmp_key_2 = torch.cat([key[4], 
+                                                       coef*key[4]+(1-coef)*key[APP_INDEX],
+                                                       coef*key[4]+(1-coef)*key[STRUCT_INDEX],
+                                                       coef*key[4]+(1-coef)*key[STYLE_INDEX]],dim=0)
+                                tmp_value_2 = torch.cat([value[4], 
+                                                        coef*value[4]+(1-coef)*value[APP_INDEX], 
+                                                        coef*value[4]+(1-coef)*value[STRUCT_INDEX],
+                                                        coef*value[4]+(1-coef)*value[STYLE_INDEX]],dim=0)
 
-                                key = torch.cat([key,key,key],dim=1)
-                                value=torch.cat([value,value,value],dim=1)
+                                key = torch.cat([key,key,key,key],dim=1)
+                                value=torch.cat([value,value,value,value],dim=1)
                                 L = key[APP_INDEX].shape[0]
                                 attn_control = L
 
                             key[OUT_INDEX] = tmp_key
                             value[OUT_INDEX] = tmp_value
-                            key[3] = tmp_key_2
-                            value[3] = tmp_value_2
+                            key[4] = tmp_key_2
+                            value[4] = tmp_value_2
                             #query[OUT_INDEX] = 0.04*query[STRUCT_INDEX] + 0.96*query[OUT_INDEX]#+0.2*query[APP_INDEX]
 
                 query = query.view(batch_size, -1, attn.heads, head_dim).transpose(1, 2)
