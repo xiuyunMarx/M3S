@@ -7,13 +7,18 @@ from PIL import Image
 from config import RunConfig
 
 
-def load_images(cfg: RunConfig, save_path: Optional[pathlib.Path] = None) -> Tuple[Image.Image, Image.Image]:
-    image_style = load_size(cfg.app_image_path)
+def load_images(cfg: RunConfig, save_path: Optional[pathlib.Path] = None) -> Tuple[Image.Image, Image.Image, Image.Image]:
+    #henceforth, style image cannot be optional
+    image_app = load_size(cfg.app_image_path)
     image_struct = load_size(cfg.struct_image_path)
+    image_style = load_size(cfg.style_image_path)
+    
     if save_path is not None:
-        Image.fromarray(image_style).save(save_path / f"in_style.png")
+        Image.fromarray(image_app).save(save_path / f"in_app.png")
         Image.fromarray(image_struct).save(save_path / f"in_struct.png")
-    return image_style, image_struct
+        Image.fromarray(image_style).save(save_path / f"in_style_ref.png")
+
+    return image_app, image_struct, image_style
 
 
 def load_size(image_path: pathlib.Path,
@@ -45,7 +50,7 @@ def load_size(image_path: pathlib.Path,
         image = image[offset:offset + w]
 
     image = np.array(Image.fromarray(image).resize((size, size)))
-    return image
+    return image #type:ignore
 
 
 def save_generated_masks(model, cfg: RunConfig):

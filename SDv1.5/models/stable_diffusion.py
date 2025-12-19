@@ -37,7 +37,7 @@ class CrossImageAttentionStableDiffusionPipeline(StableDiffusionPipeline):
     @torch.no_grad()
     def __call__(
             self,
-            prompt: Union[str, List[str]] = None,
+            prompt: Union[str, List[str]] = None, #type:ignore
             height: Optional[int] = None,
             width: Optional[int] = None,
             num_inference_steps: int = 50,
@@ -102,17 +102,17 @@ class CrossImageAttentionStableDiffusionPipeline(StableDiffusionPipeline):
         # 4. Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps, device=device)
         timesteps = self.scheduler.timesteps
-        t_to_idx = {int(v): k for k, v in enumerate(timesteps[-zs[0].shape[0]:])}
-        timesteps = timesteps[-zs[0].shape[0]:]
+        t_to_idx = {int(v): k for k, v in enumerate(timesteps[-zs[0].shape[0]:])} #type:ignore
+        timesteps = timesteps[-zs[0].shape[0]:] #type:ignore
 
         # 5. Prepare latent variables
         num_channels_latents = self.unet.config.in_channels
         latents = self.prepare_latents(
-            batch_size * num_images_per_prompt,
+            batch_size * num_images_per_prompt, #type:ignore
             num_channels_latents,
             height,
             width,
-            prompt_embeds.dtype,
+            prompt_embeds.dtype, #type:ignore
             device,
             generator,
             latents,
@@ -132,26 +132,27 @@ class CrossImageAttentionStableDiffusionPipeline(StableDiffusionPipeline):
             latent_model_input = torch.cat([latents] * 2) if do_classifier_free_guidance else latents
             latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
-            noise_pred_swap = self.unet(
-                latent_model_input[0:4],
+            noise_pred_swap = self.unet( #预测噪声
+                latent_model_input[0:5], #target, ref1, ref2, target(no text)
                 t,
-                encoder_hidden_states=prompt_embeds[0:4],
+                encoder_hidden_states=prompt_embeds[0:5], #prompt_embeds, 3 styles images
                 cross_attention_kwargs={'perform_swap': True},
                 return_dict=False,
             )[0]
-            noise_pred_swap = torch.cat([noise_pred_swap, noise_pred_swap[1:3]], dim=0)
+            noise_pred_swap = torch.cat([noise_pred_swap, noise_pred_swap[1:4]], dim=0)
 
             noise_pred_no_swap = self.unet(
-                torch.cat([latent_model_input[0:1], latent_model_input[3:4]], dim=0), #latent_model_input,
+                torch.cat([latent_model_input[0:1], latent_model_input[4:5]], dim=0), #latent_model_input,
                 t,
-                encoder_hidden_states=torch.cat([prompt_embeds[0:1],prompt_embeds[3:4]], dim=0), #prompt_embeds,
+                encoder_hidden_states=torch.cat([prompt_embeds[0:1],prompt_embeds[4:5]], dim=0), #prompt_embeds,
                 cross_attention_kwargs={'perform_swap': False},
                 return_dict=False,
             )[0]
 
+            #
             tmp = noise_pred_swap.clone()
-            tmp[0] = noise_pred_no_swap[0]
-            tmp[3] = noise_pred_no_swap[1]
+            tmp[0] = noise_pred_no_swap[0] #有text
+            tmp[4] = noise_pred_no_swap[1] #无text
             noise_pred_no_swap = tmp
 
             # perform guidance
@@ -183,7 +184,7 @@ class CrossImageAttentionStableDiffusionPipeline(StableDiffusionPipeline):
                 else:
                     noise_pred = noise_pred_swap
 
-            eta_scheduler =[0,1,1]
+            eta_scheduler =[0,1,1,1] #加一个1, for ref3
             zs[0]=None
             latents = torch.stack([
                 self.perform_ddpm_step(t_to_idx, zs[latent_idx], latents[latent_idx], t, 

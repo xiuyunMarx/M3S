@@ -15,19 +15,23 @@ from config import RunConfig, Range
 from utils import latent_utils
 from utils.latent_utils import load_latents_or_invert_images
 
-
-@pyrallis.wrap()
+ 
+@pyrallis.wrap() #type:ignore
 def main(cfg: RunConfig):
     run(cfg)
 
 
 def run(cfg: RunConfig) -> List[Image.Image]:
-    pyrallis.dump(cfg, open(cfg.output_path / 'config.yaml', 'w'))
+    #TODO: add support for 3 ref images
+    pyrallis.dump(cfg, open(cfg.output_path / 'config.yaml', 'w')) #type:ignore
     set_seed(cfg.seed)
     model = AppearanceTransferModel(cfg)
-    latents_app, latents_struct, noise_app, noise_struct = load_latents_or_invert_images(model=model, cfg=cfg)
-    model.set_latents(latents_app, latents_struct)
-    model.set_noise(noise_app, noise_struct)
+    latents_app, latents_struct,latents_style, noise_app, noise_struct, noise_style  = load_latents_or_invert_images(model=model, cfg=cfg)
+    
+    model.set_latents(latents_app=latents_app, latents_struct= latents_struct,latent_style=latents_style)
+    model.set_noise(zs_app=noise_app, zs_struct=noise_struct, zs_style=noise_style)
+    
+    
     print("Running appearance transfer...")
     images = run_appearance_transfer(model=model, cfg=cfg)
     print("Done.")
@@ -41,7 +45,7 @@ def run_appearance_transfer(model: AppearanceTransferModel, cfg: RunConfig) -> L
     start_step = min(cfg.cross_attn_32_range.start, cfg.cross_attn_64_range.start)
     end_step = max(cfg.cross_attn_32_range.end, cfg.cross_attn_64_range.end)
     images = model.pipe(
-        prompt=[cfg.prompt,cfg.prompt_app,cfg.prompt_struct],
+        prompt=[cfg.prompt,cfg.prompt_app,cfg.prompt_struct, cfg.prompt_style], #加一个空的prompt
         latents=init_latents,
         guidance_scale=cfg.CFG,
         num_inference_steps=cfg.num_timesteps,

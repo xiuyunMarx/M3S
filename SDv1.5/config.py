@@ -14,6 +14,8 @@ class RunConfig:
     app_image_path: Path
     # Struct image path
     struct_image_path: Path
+    #style image path
+    style_image_path: Path #this field cannot be none
     # Domain name (e.g., buildings, animals)
     domain_name: Optional[str] = None
     ref_name: Optional[str] = None
@@ -50,11 +52,13 @@ class RunConfig:
     mix_style: bool = False
     interpolation: float = 0
     resize: bool = False
+    
+    #the mixture coefficient for style mixing
     alpha: float = 0.5
-
+    tankman: float = 0.2
     def __post_init__(self):
         save_name = f'app={self.app_image_path.stem}---struct={self.struct_image_path.stem}'
-        self.output_path = self.output_path / self.domain_name / save_name
+        self.output_path = self.output_path / self.domain_name / save_name #type:ignore
         self.output_path.mkdir(parents=True, exist_ok=True)
 
         # Handle the domain name, prompt, and object nouns used for masking, etc.
@@ -66,6 +70,7 @@ class RunConfig:
             self.prompt = f"a sketch of {self.domain_name}" #, high quality, professional technical drawing, no color, masterpiece
             self.prompt_app ="" # f"A sketch of {self.ref_name}"
             self.prompt_struct = "" #f"A sketch of {self.struct_name}"
+            self.prompt_style = ""
         if self.object_noun is None:
             self.object_noun = self.domain_name
 

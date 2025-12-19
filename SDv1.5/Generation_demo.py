@@ -25,12 +25,16 @@ for j in [1,2,3,4,5]:
   interpolation = 0.1
   for i, image_path in enumerate(image_path_list):
       print(prompts[i+1])
-      full_image_path = os.path.join(style_image_path, image_path)
+      full_image_path = os.path.join(style_image_path, image_path_list[i])
+      full_image_path1 = os.path.join(style_image_path, image_path_list[i+1 % 5])
+      full_image_path2 = os.path.join(style_image_path, image_path_list[i+2 % 5])
+      
       domain_name = prompts[i+1]
       config = RunConfig(
           skip_steps=skip_steps,
           app_image_path=Path(full_image_path),
-          struct_image_path=Path(full_image_path),
+          struct_image_path=Path(full_image_path1),
+          style_image_path=Path(full_image_path2),
           output_path=Path(f'neurips_demo/CFG{CFG}_sfg{swap_guidance_scale}_skip{skip_steps}/style{j}_{sparse_weight}_int_{interpolation}'),
           #output_path=Path(f'kv_swap/style{j}/'),
           domain_name=domain_name,
@@ -41,7 +45,9 @@ for j in [1,2,3,4,5]:
           sparse_weight=sparse_weight,
           load_latents=False,
           interpolation=interpolation,
-          resize=False
+          resize=False,
+          alpha=0.6,
+          tankman=0.3
       )
       images = run(cfg=config)
       torch.cuda.empty_cache()

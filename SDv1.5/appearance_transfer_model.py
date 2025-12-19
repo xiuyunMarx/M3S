@@ -3,7 +3,7 @@ from typing import List, Optional, Callable
 import torch
 import torch.nn.functional as F
 from config import RunConfig
-from constants import OUT_INDEX, STRUCT_INDEX, STYLE_INDEX
+from constants import OUT_INDEX, STRUCT_INDEX, APP_INDEX
 from models.stable_diffusion import CrossImageAttentionStableDiffusionPipeline
 from utils import attention_utils
 from utils.adain import masked_adain, adain
@@ -20,42 +20,46 @@ class AppearanceTransferModel:
         run_config = config
         self.pipe = get_stable_diffusion_model() if pipe is None else pipe
         self.register_attention_control()
-        self.segmentor = Segmentor(prompt=config.prompt, object_nouns=[config.object_noun])
-        self.latents_app, self.latents_struct = None, None
-        self.zs_app, self.zs_struct = None, None
+        self.segmentor = Segmentor(prompt=config.prompt, object_nouns=[config.object_noun]) #type: ignore
+        self.latents_app, self.latents_struct, self.latent_style = None, None, None
+        self.zs_app, self.zs_struct, self.zs_style = None, None, None
         self.image_app_mask_32, self.image_app_mask_64 = None, None
         self.image_struct_mask_32, self.image_struct_mask_64 = None, None
         self.enable_edit = False
         self.step = 0
 
-    def set_latents(self, latents_app: torch.Tensor, latents_struct: torch.Tensor):
+    def set_latents(self, latents_app: torch.Tensor, latents_struct: torch.Tensor, latent_style: torch.Tensor):
         self.latents_app = latents_app
         self.latents_struct = latents_struct
-
-    def set_noise(self, zs_app: torch.Tensor, zs_struct: torch.Tensor):
+        self.latent_style = latent_style
+        
+    def set_noise(self, zs_app: torch.Tensor, zs_struct: torch.Tensor, zs_style: torch.Tensor):
         self.zs_app = zs_app
         self.zs_struct = zs_struct
-
+        self.zs_style = zs_style
+        
     def set_masks(self, masks: List[torch.Tensor]):
         self.image_app_mask_32, self.image_struct_mask_32, self.image_app_mask_64, self.image_struct_mask_64 = masks
 
     def get_adain_callback(self):
 
-        def callback(st: int, timestep: int, latents: torch.FloatTensor) -> Callable:
+        def callback(st: int, timestep: int, latents: torch.FloatTensor) -> Callable: #type:ignore
             self.step = st
             # Compute the masks using prompt mixing self-segmentation and use the masks for AdaIN operation
             if self.config.use_masked_adain and self.step == self.config.adain_range.start:
                 masks = self.segmentor.get_object_masks()
-                self.set_masks(masks)
+                self.set_masks(masks)#type:ignore
             # Apply AdaIN operation using the computed masks
             if self.config.adain_range.start <= self.step < self.config.adain_range.end:
                 if self.config.use_masked_adain:
                     latents[0] = masked_adain(latents[0], latents[1], self.image_struct_mask_64, self.image_app_mask_64)
                 else:
-                    # 1: Only synthesis 2: mixture mode
+                    # 1: Only synthesis 2: mixture mode #增加latent3
+                    #TODO: add style image mix for ref3
                     if run_config.mix_style is True:
                         alpha = run_config.alpha
-                        latents[0] = alpha*adain(latents[0], latents[1])+(1-alpha)*adain(latents[0], latents[2])
+                        tankman = run_config.tankman
+                        latents[0] = alpha*adain(latents[0], latents[1]) + (1 - alpha - tankman)*adain(latents[0], latents[2]) + tankman*adain(latents[0], latents[3])
                     else:
                         latents[0] = adain(latents[0], latents[1])
 
@@ -124,62 +128,61 @@ class AppearanceTransferModel:
                 attn_control = None
                 if perform_swap and not is_cross and "up" in self.place_in_unet and model_self.enable_edit:
                     if attention_utils.should_mix_keys_and_values(model_self, hidden_states):
-                        coef = run_config.interpolation #torch.rand(1).cuda()
+                        coef = run_config.interpolation #torch.rand(1).cuda() #type:ignore
                         if model_self.step <0:
-                            key[OUT_INDEX] = key[STYLE_INDEX]
-                            value[OUT_INDEX] = value[STYLE_INDEX]
+                            key[OUT_INDEX] = key[APP_INDEX]
+                            value[OUT_INDEX] = value[APP_INDEX]
 
-                            key[3] = key[STYLE_INDEX]
-                            value[3] = value[STYLE_INDEX]
+                            key[3] = key[APP_INDEX]
+                            value[3] = value[APP_INDEX]
                         
                         else:
-
                             # sigle style
-                            if run_config.mix_style is False:
+                            if run_config.mix_style is False: #type:ignore
                                 tmp_key = torch.cat([key[OUT_INDEX],
-                                                    coef*key[OUT_INDEX]+(1-coef)*key[STYLE_INDEX]],dim=0)
+                                                    coef*key[OUT_INDEX]+(1-coef)*key[APP_INDEX]],dim=0)
                                 
                                 tmp_value = torch.cat([value[OUT_INDEX], 
-                                                       coef*value[3]+(1-coef)*value[STYLE_INDEX]],dim=0)
+                                                       coef*value[3]+(1-coef)*value[APP_INDEX]],dim=0)
 
                                 tmp_key_2 = torch.cat([key[3], 
-                                                       coef*key[3]+(1-coef)*key[STYLE_INDEX]],dim=0)
+                                                       coef*key[3]+(1-coef)*key[APP_INDEX]],dim=0)
                                 
                                 tmp_value_2 = torch.cat([value[3], 
-                                                         coef*value[3]+(1-coef)*value[STYLE_INDEX]],dim=0)
+                                                         coef*value[3]+(1-coef)*value[APP_INDEX]],dim=0)
 
                                 key = torch.cat([key,key],dim=1)
                                 value=torch.cat([value,value],dim=1)
-                                L = key[STYLE_INDEX].shape[0]
+                                L = key[APP_INDEX].shape[0]
                                 attn_control = L
 
                             # style mixing
                             else:
                                 tmp_key = torch.cat([1.0*key[OUT_INDEX],
-                                                     coef*key[OUT_INDEX]+(1-coef)*key[STYLE_INDEX],
+                                                     coef*key[OUT_INDEX]+(1-coef)*key[APP_INDEX],
                                                      coef*key[OUT_INDEX]+(1-coef)*key[STRUCT_INDEX] ],dim=0)
                                 
                                 tmp_value = torch.cat([1.0*value[OUT_INDEX], 
-                                                       coef*value[OUT_INDEX]+(1-coef)*value[STYLE_INDEX], 
+                                                       coef*value[OUT_INDEX]+(1-coef)*value[APP_INDEX], 
                                                        coef*value[OUT_INDEX]+(1-coef)*value[STRUCT_INDEX]],dim=0)
 
                                 tmp_key_2 = torch.cat([key[3], 
-                                                       coef*key[3]+(1-coef)*key[STYLE_INDEX],
+                                                       coef*key[3]+(1-coef)*key[APP_INDEX],
                                                      coef*key[3]+(1-coef)*key[STRUCT_INDEX]],dim=0)
                                 tmp_value_2 = torch.cat([value[3], 
-                                                        coef*value[3]+(1-coef)*value[STYLE_INDEX], 
+                                                        coef*value[3]+(1-coef)*value[APP_INDEX], 
                                                         coef*value[3]+(1-coef)*value[STRUCT_INDEX]],dim=0)
 
                                 key = torch.cat([key,key,key],dim=1)
                                 value=torch.cat([value,value,value],dim=1)
-                                L = key[STYLE_INDEX].shape[0]
+                                L = key[APP_INDEX].shape[0]
                                 attn_control = L
 
                             key[OUT_INDEX] = tmp_key
                             value[OUT_INDEX] = tmp_value
                             key[3] = tmp_key_2
                             value[3] = tmp_value_2
-                            #query[OUT_INDEX] = 0.04*query[STRUCT_INDEX] + 0.96*query[OUT_INDEX]#+0.2*query[STYLE_INDEX]
+                            #query[OUT_INDEX] = 0.04*query[STRUCT_INDEX] + 0.96*query[OUT_INDEX]#+0.2*query[APP_INDEX]
 
                 query = query.view(batch_size, -1, attn.heads, head_dim).transpose(1, 2)
                 key = key.view(batch_size, -1, attn.heads, head_kv_dim).transpose(1, 2)

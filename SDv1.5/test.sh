@@ -24,6 +24,7 @@ CUDA_VISIBLE_DEVICES=0 python run.py \
 --interpolation 0.1 \
 --alpha 0.0 \
 
+#TODO: modulate the parameters omega1, omega2
 # multi-style
 CUDA_VISIBLE_DEVICES=0 python run.py \
 --seed 42 \
@@ -49,7 +50,7 @@ CUDA_VISIBLE_DEVICES=0 python run.py \
 --mix_style False \
 --domain_name 'a cat' \
 --swap_guidance_scale 25 \
---CFG 15 \
+--CFG 15 \ 
 --sparse_weight 60 \
 --interpolation 0.05 \
 --alpha 0.0 \
