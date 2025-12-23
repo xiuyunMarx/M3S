@@ -55,7 +55,7 @@ class RunConfig:
     
     #the mixture coefficient for style mixing
     alpha: float = 0.5
-    tankman: float = 0.2
+    reimu: float = 0.2
     def __post_init__(self):
         save_name = f'app={self.app_image_path.stem}---struct={self.struct_image_path.stem}'
         self.output_path = self.output_path / self.domain_name / save_name #type:ignore

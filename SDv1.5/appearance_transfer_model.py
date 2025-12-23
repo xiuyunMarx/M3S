@@ -58,7 +58,7 @@ class AppearanceTransferModel:
                     #TODO: add style image mix for ref3
                     if run_config.mix_style is True:
                         alpha = run_config.alpha
-                        tankman = run_config.tankman
+                        tankman = run_config.reimu
                         latents[0] = alpha*adain(latents[0], latents[1]) + tankman*adain(latents[0], latents[2]) + (1-alpha-tankman)*adain(latents[0], latents[3])
                     else:
                         latents[0] = adain(latents[0], latents[1])
