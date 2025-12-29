@@ -13,9 +13,9 @@ from run import run
 from notebooks.prompts_dict import sketchy_prompts, common_prompts
 
 #remove the last generation result
-if os.path.exists('./neurips_demo'):
-    import shutil
-    shutil.rmtree('./neurips_demo')
+# if os.path.exists('./neurips_demo'):
+#     import shutil
+#     shutil.rmtree('./neurips_demo')
     
 prompts=common_prompts
 
@@ -41,8 +41,8 @@ for j in [1,2,3,4,5]:
   for i, image_path in enumerate(image_path_list):
       print(prompts[i+1])
       full_image_path = os.path.join(style_image_path, image_path_list[i])
-      full_image_path1 = os.path.join(style_image_path, image_path_list[i+1 % n_images])
-      full_image_path2 = os.path.join(style_image_path, image_path_list[i+2 % n_images])
+      full_image_path1 = os.path.join(style_image_path, image_path_list[(i+1) % n_images])
+      full_image_path2 = os.path.join(style_image_path, image_path_list[(i+2) % n_images])
       
       domain_name = prompts[i+1]
       config = RunConfig(

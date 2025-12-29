@@ -1,4 +1,5 @@
-./SDv1.5/__pycache__
-SDv1.5/__pycache__
-./SDv1.5/model/__pycache__
-./SDv1.5/neurips_demo
+SDv1.5/neurips_demo
+**/__pycache__/
+**/.DS_Store
+.vscode
+model/
