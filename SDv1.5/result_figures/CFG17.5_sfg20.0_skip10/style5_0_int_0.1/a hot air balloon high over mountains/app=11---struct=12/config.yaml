@@ -1,0 +1,34 @@
+CFG: 17.5
+adain_range:
+- 0
+- 100
+alpha: 0.5
+app_image_path: style/style5/11.png
+clip_weight: 25
+contrast_strength: 1.67
+cross_attn_32_range:
+- 0
+- 70
+cross_attn_64_range:
+- 0
+- 90
+domain_name: a hot air balloon high over mountains
+interpolation: 0.1
+load_latents: false
+mix_style: true
+num_timesteps: 100
+object_noun: a hot air balloon high over mountains
+output_path: neurips_demo/CFG17.5_sfg20.0_skip10/style5_0_int_0.1/a hot air balloon
+  high over mountains/app=11---struct=12
+prompt: a sketch of a hot air balloon high over mountains
+ref_name: null
+reimu: 0.3
+resize: false
+seed: 42
+skip_steps: 10
+sparse_weight: 0
+struct_image_path: style/style5/12.png
+struct_name: null
+style_image_path: style/style5/13.png
+swap_guidance_scale: 20.0
+use_masked_adain: false
