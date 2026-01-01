@@ -7,8 +7,9 @@ def run_grid_search():
     # cfg_values = [5.0, 10.0, 15.0, 20.0, 25.0]
     # swap_guidance_scales = [5.0, 10.0, 15.0, 20.0, 25.0]
     # configs = [(10, 15), (20, 15), (15, 10), (15, 20)]
-    configs = [(20, 20)]
-    configs = [(17.5, 15), (17.5, 17.5), (17.5, 20), (20, 10)]
+    # configs = [(20, 20)]
+    # configs = [(17.5, 15), (17.5, 17.5), (17.5, 20), (20, 10)]
+    configs = [(7.5, 7.5)]
 
     # The directory where Generation_demo.py is located
     working_dir = "SDv1.5"  

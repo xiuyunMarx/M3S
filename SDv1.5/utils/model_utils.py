@@ -11,7 +11,7 @@ from models.unet_2d_condition import FreeUUNet2DConditionModel
 def get_stable_diffusion_model() -> CrossImageAttentionStableDiffusionPipeline:
     print("Loading Stable Diffusion model...")
     device = torch.device(f'cuda') if torch.cuda.is_available() else torch.device('cpu')
-    MODEL_PATH = "model/sd-v1-5"
+    MODEL_PATH = "/mnt/shared-storage-user/yangpeiyao/M3S/model/sd-v1-5"
     pipe = CrossImageAttentionStableDiffusionPipeline.from_pretrained(MODEL_PATH,
                                                                       safety_checker=None).to(device)
     pipe.unet = FreeUUNet2DConditionModel.from_pretrained(MODEL_PATH, subfolder="unet").to(device)
